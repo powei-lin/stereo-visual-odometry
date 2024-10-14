@@ -2,6 +2,17 @@
 name = "visual-odometry-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["Powei Lin <poweilin1994@gmail.com>"]
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+description = "Patch tracker"
+homepage = "https://github.com/powei-lin/tiny-vo-rs"
+repository = "https://github.com/powei-lin/tiny-vo-rs"
+keywords = ["visual-odometry", "opticalflow"]
+categories = ["science", "mathematics"]
+exclude = [
+    "docs/*.avif",
+]
 
 [dependencies]
 env_logger = "0.11.5"

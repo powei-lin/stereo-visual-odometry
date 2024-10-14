@@ -12,8 +12,7 @@ fn get_tum_vi_stereo_paths(dataset_root: &str) -> Vec<(u64, String, String)> {
     let cam1_paths =
         glob(format!("{}/mav0/cam1/data/*.png", dataset_root).as_str()).expect("cam1 failed");
     cam0_paths
-        .into_iter()
-        .zip(cam1_paths.into_iter())
+        .zip(cam1_paths)
         .filter_map(|(p0, p1)| {
             if let Ok(p0) = p0 {
                 if let Ok(p1) = p1 {
@@ -49,10 +48,9 @@ fn log_image_as_jpeg(recording: &RecordingStream, topic: &str, img: &DynamicImag
         )
         .unwrap();
 }
+type VecPtsColors = Vec<(Vec<(f32, f32)>, Vec<(u8, u8, u8, u8)>)>;
 
-fn get_p2ds_and_colors<const N: u32>(
-    point_tracker: &StereoPatchTracker<N>,
-) -> Vec<(Vec<(f32, f32)>, Vec<(u8, u8, u8, u8)>)> {
+fn get_p2ds_and_colors<const N: u32>(point_tracker: &StereoPatchTracker<N>) -> VecPtsColors {
     let tracked_stereo_pts = point_tracker.get_track_points();
     tracked_stereo_pts
         .iter()

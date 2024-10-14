@@ -1,5 +1,5 @@
 [package]
-name = "visual-odometry-rs"
+name = "tiny-vo"
 version = "0.1.0"
 edition = "2021"
 authors = ["Powei Lin <poweilin1994@gmail.com>"]

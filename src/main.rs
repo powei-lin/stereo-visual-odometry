@@ -40,7 +40,6 @@ fn log_image_as_jpeg(recording: &RecordingStream, topic: &str, img: &DynamicImag
     let mut bytes: Vec<u8> = Vec::new();
     img.write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Jpeg)
         .unwrap();
-
     recording
         .log(
             format!("{}/image", topic),
@@ -76,6 +75,7 @@ fn get_p2ds_and_colors<const N: u32>(point_tracker: &StereoPatchTracker<N>) -> V
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
+
     let recording = rerun::RecordingStreamBuilder::new("visual odometry").spawn()?;
     let dataset_root = "/Users/powei/Documents/dataset/tum_vi/dataset-corridor4_512_16";
     let dataset_path_tuple_list = get_tum_vi_stereo_paths(dataset_root);

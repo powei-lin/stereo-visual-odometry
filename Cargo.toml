@@ -2,27 +2,22 @@
 name = "stereo-visual-odometry"
 version = "0.1.0"
 edition = "2021"
-authors = ["Powei Lin <poweilin1994@gmail.com>"]
-readme = "README.md"
-license = "MIT OR Apache-2.0"
-description = "Patch tracker"
-homepage = "https://github.com/powei-lin/tiny-vo-rs"
-repository = "https://github.com/powei-lin/tiny-vo-rs"
-keywords = ["visual-odometry", "opticalflow"]
-categories = ["science", "mathematics"]
-exclude = [
-    "docs/*.avif",
-]
 
 [dependencies]
 camera-intrinsic-model = "0.3.1"
+clap = { version = "4.5.23", features = ["derive"] }
 env_logger = "0.11.5"
 glob = "0.3.1"
 image = "0.25.5"
-ndarray = "0.16.1"
+nalgebra = "0.33.2"
+num-dual = "0.10.3"
 patch-tracker = "0.2.1"
-rand = "0.8.5"
-rand_chacha = "0.3.1"
-rayon = "1.10.0"
 rerun = "0.17.0"
-tiny-solver = "0.11.0"
+serde = { version = "1.0.216", features = ["derive"] }
+serde_json = "1.0.133"
+sqpnp_simple = "0.1.5"
+tiny-solver = "0.11.1"
+
+[[bin]]
+name = "stereo_vo"
+path = "src/bin/stereo_vo.rs"

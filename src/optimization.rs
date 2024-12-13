@@ -62,6 +62,7 @@ pub fn pnp_refine(
 ) -> Option<(na::Isometry3<f64>, Vec<usize>)> {
     let rtvec = t_cam0_origin_init.to_rvec_tvec();
     let mut problem = tiny_solver::Problem::new();
+    const HUBER_SCALE: f64 = 0.03;
 
     let mut cam0_cost = HashMap::new();
     let mut cam1_cost = HashMap::new();
@@ -72,7 +73,7 @@ pub fn pnp_refine(
             2,
             vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
             Box::new(cost),
-            Some(Box::new(HuberLoss::new(0.5))),
+            Some(Box::new(HuberLoss::new(HUBER_SCALE))),
         );
     }
     for (id, p3d, p2d) in cam1_pts {
@@ -82,7 +83,7 @@ pub fn pnp_refine(
             2,
             vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
             Box::new(cost),
-            Some(Box::new(HuberLoss::new(0.1))),
+            Some(Box::new(HuberLoss::new(HUBER_SCALE))),
         );
     }
     let initial_values = HashMap::<String, na::DVector<f64>>::from([
@@ -131,7 +132,7 @@ pub fn pnp_refine(
                     2,
                     vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
                     Box::new(cost),
-                    Some(Box::new(HuberLoss::new(0.5))),
+                    Some(Box::new(HuberLoss::new(HUBER_SCALE))),
                 );
             }
             if let Some(cost) = cam1_cost.remove(&id) {
@@ -139,7 +140,7 @@ pub fn pnp_refine(
                     2,
                     vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
                     Box::new(cost),
-                    Some(Box::new(HuberLoss::new(0.5))),
+                    Some(Box::new(HuberLoss::new(HUBER_SCALE))),
                 );
             }
         }

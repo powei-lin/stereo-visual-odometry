@@ -102,7 +102,7 @@ impl StereoEstimator {
                 &cam1_pts,
             ) {
                 self.t_cam0_origin_current = t_cam_world;
-                // self.stereo_point_tracker.remove_id(&bad_ids);
+                self.stereo_point_tracker.remove_id(&bad_ids);
                 // self.tracked_points_map.remove();
             } else {
                 println!("failed");
@@ -122,7 +122,7 @@ impl StereoEstimator {
                     .unproject_one(&na::Vector2::new(pt1.0, pt1.1).cast());
                 let p3d_current_frame =
                     triangulate_points(&pt0_undistort, &pt1_undistort, &self.t_1_0_mat34);
-                if p3d_current_frame[2] < 0.0 || p3d_current_frame[2] > 5.0 {
+                if p3d_current_frame[2] < 0.1 || p3d_current_frame.norm_squared() > 25.0 {
                     continue;
                 }
                 let p3d_world = t_origin_cam0 * p3d_current_frame;

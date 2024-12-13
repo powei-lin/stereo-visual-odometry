@@ -1,8 +1,20 @@
 use std::io::Cursor;
 
 use image::DynamicImage;
-use rerun::RecordingStream;
 use nalgebra as na;
+use rand::prelude::*;
+use rand_chacha::ChaCha8Rng;
+use rerun::RecordingStream;
+
+pub fn id_to_color(id: u64) -> [u8; 3] {
+    let mut rng = ChaCha8Rng::seed_from_u64(id);
+    let color_num = rng.gen_range(0..2u32.pow(24));
+    [
+        ((color_num >> 16) % 256) as u8,
+        ((color_num >> 8) % 256) as u8,
+        (color_num % 256) as u8,
+    ]
+}
 
 pub fn log_image_as_compressed(
     recording: &RecordingStream,

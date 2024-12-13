@@ -1,9 +1,9 @@
 use camera_intrinsic_model::io::model_from_json;
 use clap::Parser;
-use stereo_vo::{
+use stereo_visual_odometry::{
     io::{extrinsics_from_json, EurocImageLoader},
     stereo_estimator::StereoEstimator,
-    visualize::{self, log_image_as_compressed, rerun_shift},
+    visualize::{self, id_to_color, log_image_as_compressed, rerun_shift},
 };
 
 #[derive(Parser)]
@@ -42,34 +42,48 @@ fn main() {
         log_image_as_compressed(&recording, "/cam1", &img1, image::ImageFormat::Jpeg);
         stereo_esimator.process(&img0, &img1);
         let (current_points_cam0, current_points_cam1) = stereo_esimator.get_current_frame_points();
-        let pts0: Vec<_> = current_points_cam0
-            .values()
+        let (pts0, colors0): (Vec<_>, Vec<_>) = current_points_cam0
             .into_iter()
-            .map(|p| *p)
-            .collect();
-        let pts1: Vec<_> = current_points_cam1
-            .values()
+            .map(|(&id, p)| (*p, id_to_color(id as u64)))
+            .unzip();
+        let (pts1, colors1): (Vec<_>, Vec<_>) = current_points_cam1
             .into_iter()
-            .map(|p| *p)
-            .collect();
+            .map(|(&id, p)| (*p, id_to_color(id as u64)))
+            .unzip();
         recording
-            .log("/cam0/points", &rerun::Points2D::new(rerun_shift(&pts0)))
+            .log(
+                "/cam0/points",
+                &rerun::Points2D::new(rerun_shift(&pts0)).with_colors(colors0),
+            )
             .unwrap();
         recording
-            .log("/cam1/points", &rerun::Points2D::new(rerun_shift(&pts1)))
+            .log(
+                "/cam1/points",
+                &rerun::Points2D::new(rerun_shift(&pts1)).with_colors(colors1),
+            )
             .unwrap();
-        let tracked_pts: Vec<_> = stereo_esimator
+        let (tracked_pts, tracked_colors): (Vec<_>, Vec<_>) = stereo_esimator
             .get_track_points()
-            .values()
-            .map(|f| {
+            .iter()
+            .map(|(&id, f)| {
                 let v = f.cast::<f32>();
-                (v[0], v[1], v[2])
+                ((v[0], v[1], v[2]), id_to_color(id as u64))
             })
-            .collect();
+            .unzip();
         recording
-            .log("/world/points", &rerun::Points3D::new(&tracked_pts))
+            .log(
+                "/world/points",
+                &rerun::Points3D::new(&tracked_pts).with_colors(tracked_colors),
+            )
             .unwrap();
-        recording.log("/pose", &visualize::na_isometry3_to_rerun_transform3d(stereo_esimator.get_current_cam0_pose())).unwrap();
+        recording
+            .log(
+                "/pose",
+                &visualize::na_isometry3_to_rerun_transform3d(
+                    &stereo_esimator.get_current_cam0_pose().inverse(),
+                ),
+            )
+            .unwrap();
     }
     // println!("{:?}", stereo_esimator);
 }

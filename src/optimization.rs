@@ -70,7 +70,7 @@ pub fn pnp_refine(
 ) -> Option<(na::Isometry3<f64>, Vec<usize>)> {
     let rtvec = t_cam0_origin_init.to_rvec_tvec();
     let mut problem = tiny_solver::Problem::new();
-    const HUBER_SCALE: f64 = 0.001;
+    const HUBER_SCALE: f64 = 0.0001;
 
     let mut cam0_cost = HashMap::new();
     let mut cam1_cost = HashMap::new();
@@ -113,28 +113,23 @@ pub fn pnp_refine(
             let cost = PnPFactor::<f64>::new(&na::Isometry3::identity(), p3d, p2d);
             let rep = cost.distance_error(&t_cam_world);
             let rep_sq = rep.norm_squared();
-            if rep_sq > threshold {
-                bad_ids.push(*id0);
-            } else {
-                good_id_errs.push((*id0, rep_sq));
-            }
+            good_id_errs.push((*id0, rep_sq));
         }
         for (id1, p3d, p2d) in cam1_pts {
-            let cost = PnPFactor::<f64>::new(&na::Isometry3::identity(), p3d, p2d);
+            let cost = PnPFactor::<f64>::new(&t_1_0, p3d, p2d);
             let rep = cost.distance_error(&t_cam_world);
             let rep_sq = rep.norm_squared();
-            if rep_sq > threshold {
-                bad_ids.push(*id1);
-            } else {
-                good_id_errs.push((*id1, rep_sq));
-            }
+            good_id_errs.push((*id1, rep_sq));
         }
         good_id_errs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        if good_id_errs.len() > 50 {
+            bad_ids = good_id_errs[50..].iter().map(|f| f.0).collect();
+        }
         // println!("\n err");
         // for g in &good_id_errs {
         //     println!("{}", g.1);
         // }
-        good_id_errs.truncate(25);
+        good_id_errs.truncate(30);
 
         let mut refine_problem = tiny_solver::Problem::new();
 

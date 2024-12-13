@@ -63,7 +63,7 @@ fn main() {
             )
             .unwrap();
         let (tracked_pts, tracked_colors): (Vec<_>, Vec<_>) = stereo_esimator
-            .get_newly_added_points()
+            .get_track_points()
             .iter()
             .map(|(&id, f)| {
                 let v = f.cast::<f32>();

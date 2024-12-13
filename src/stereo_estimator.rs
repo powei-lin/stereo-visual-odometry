@@ -114,35 +114,34 @@ impl StereoEstimator {
 
         let t_origin_cam0 = self.t_cam0_origin_current.inverse();
         let mut bad_ids = Vec::new();
-        for i in untracked_both{
+        for i in untracked_both {
             let pt0 = self.current_frame_points.0.get(&i).unwrap();
             let pt1 = self.current_frame_points.1.get(&i).unwrap();
-                let pt0_undistort = self
-                    .cam0
-                    .unproject_one(&na::Vector2::new(pt0.0, pt0.1).cast());
-                let pt1_undistort = self
-                    .cam1
-                    .unproject_one(&na::Vector2::new(pt1.0, pt1.1).cast());
-                let p3d_current_frame =
-                    triangulate_points(&pt0_undistort, &pt1_undistort, &self.t_1_0_mat34);
-                if p3d_current_frame[2] < 0.1 || p3d_current_frame.norm_squared() > 50.0 {
-                    bad_ids.push(i);
-                    continue;
-                }
-                let p3d_world = t_origin_cam0 * p3d_current_frame;
-                self.tracked_points_map.insert(i, p3d_world);
-                self.newly_added_points_map.insert(i, p3d_world);
+            let pt0_undistort = self
+                .cam0
+                .unproject_one(&na::Vector2::new(pt0.0, pt0.1).cast());
+            let pt1_undistort = self
+                .cam1
+                .unproject_one(&na::Vector2::new(pt1.0, pt1.1).cast());
+            let p3d_current_frame =
+                triangulate_points(&pt0_undistort, &pt1_undistort, &self.t_1_0_mat34);
+            if p3d_current_frame[2] < 0.1 || p3d_current_frame.norm_squared() > 50.0 {
+                bad_ids.push(i);
+                continue;
+            }
+            let p3d_world = t_origin_cam0 * p3d_current_frame;
+            self.tracked_points_map.insert(i, p3d_world);
+            self.newly_added_points_map.insert(i, p3d_world);
         }
         self.stereo_point_tracker.remove_id(&bad_ids);
     }
-
 
     pub fn get_current_frame_points(
         &self,
     ) -> (&HashMap<usize, (f32, f32)>, &HashMap<usize, (f32, f32)>) {
         (&self.current_frame_points.0, &self.current_frame_points.1)
     }
-    pub fn get_newly_added_points(&self) -> &HashMap<usize, na::Vector3<f64>>{
+    pub fn get_newly_added_points(&self) -> &HashMap<usize, na::Vector3<f64>> {
         &self.newly_added_points_map
     }
     pub fn get_track_points(&self) -> &HashMap<usize, na::Vector3<f64>> {

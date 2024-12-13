@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use camera_intrinsic_model::GenericModel;
 use image::DynamicImage;
-use nalgebra::{self as na, Quaternion};
+use nalgebra::{self as na, base, Quaternion};
 use patch_tracker::StereoPatchTracker;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -14,8 +14,9 @@ pub struct StereoEstimator {
     t_1_0: na::Isometry3<f64>,
     t_1_0_mat34: na::SMatrix<f64, 3, 4>,
     t_cam0_origin_current: na::Isometry3<f64>,
-    stereo_point_tracker: StereoPatchTracker<5>,
+    stereo_point_tracker: StereoPatchTracker<6>,
     tracked_points_map: HashMap<usize, na::Vector3<f64>>,
+    newly_added_points_map: HashMap<usize, na::Vector3<f64>>,
     current_frame_points: (HashMap<usize, (f32, f32)>, HashMap<usize, (f32, f32)>),
 }
 
@@ -38,10 +39,12 @@ impl StereoEstimator {
             t_cam0_origin_current: t_cam0_origin_current,
             stereo_point_tracker: StereoPatchTracker::default(),
             tracked_points_map: HashMap::new(),
+            newly_added_points_map: HashMap::new(),
             current_frame_points: (HashMap::new(), HashMap::new()),
         }
     }
     pub fn process(&mut self, image0: &DynamicImage, image1: &DynamicImage) {
+        self.newly_added_points_map = HashMap::new();
         self.stereo_point_tracker
             .process_frame(&image0.to_luma8(), &image1.to_luma8());
         self.current_frame_points = self.stereo_point_tracker.get_track_points().into();
@@ -92,7 +95,7 @@ impl StereoEstimator {
                     (*i, (p3d[0], p3d[1], p3d[2]), (p2dz[0], p2dz[1]))
                 })
                 .collect();
-            let (p3ds0, p2ds0_z): (Vec<_>, Vec<_>) = cam0_pts.iter().map(|i| (i.1, i.2)).unzip();
+            // let (p3ds0, p2ds0_z): (Vec<_>, Vec<_>) = cam0_pts.iter().map(|i| (i.1, i.2)).unzip();
             // let ((rx, ry, rz), (tx, ty, tz)) = sqpnp_simple::sqpnp_solve(&p3ds0, &p2ds0_z).unwrap();
             // let initial_rtvec = sqpnp_simple::sqpnp_solve(&p3ds0, &p2ds0_z).unwrap();
             if let Some((t_cam_world, bad_ids)) = pnp_refine(
@@ -108,12 +111,12 @@ impl StereoEstimator {
                 println!("failed");
             }
         }
+
         let t_origin_cam0 = self.t_cam0_origin_current.inverse();
-        for (i, pt0) in &self.current_frame_points.0 {
-            if self.tracked_points_map.contains_key(i) {
-                continue;
-            }
-            if let Some(pt1) = self.current_frame_points.1.get(i) {
+        let mut bad_ids = Vec::new();
+        for i in untracked_both{
+            let pt0 = self.current_frame_points.0.get(&i).unwrap();
+            let pt1 = self.current_frame_points.1.get(&i).unwrap();
                 let pt0_undistort = self
                     .cam0
                     .unproject_one(&na::Vector2::new(pt0.0, pt0.1).cast());
@@ -123,18 +126,24 @@ impl StereoEstimator {
                 let p3d_current_frame =
                     triangulate_points(&pt0_undistort, &pt1_undistort, &self.t_1_0_mat34);
                 if p3d_current_frame[2] < 0.1 || p3d_current_frame.norm_squared() > 50.0 {
-                    self.stereo_point_tracker.remove_id(&[*i]);
+                    bad_ids.push(i);
                     continue;
                 }
                 let p3d_world = t_origin_cam0 * p3d_current_frame;
-                self.tracked_points_map.insert(*i, p3d_world);
-            }
+                self.tracked_points_map.insert(i, p3d_world);
+                self.newly_added_points_map.insert(i, p3d_world);
         }
+        self.stereo_point_tracker.remove_id(&bad_ids);
     }
+
+
     pub fn get_current_frame_points(
         &self,
     ) -> (&HashMap<usize, (f32, f32)>, &HashMap<usize, (f32, f32)>) {
         (&self.current_frame_points.0, &self.current_frame_points.1)
+    }
+    pub fn get_newly_added_points(&self) -> &HashMap<usize, na::Vector3<f64>>{
+        &self.newly_added_points_map
     }
     pub fn get_track_points(&self) -> &HashMap<usize, na::Vector3<f64>> {
         &self.tracked_points_map

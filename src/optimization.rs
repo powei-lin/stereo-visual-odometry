@@ -70,7 +70,7 @@ pub fn pnp_refine(
 ) -> Option<(na::Isometry3<f64>, Vec<usize>)> {
     let rtvec = t_cam0_origin_init.to_rvec_tvec();
     let mut problem = tiny_solver::Problem::new();
-    const HUBER_SCALE: f64 = 0.005;
+    const HUBER_SCALE: f64 = 0.001;
 
     let mut cam0_cost = HashMap::new();
     let mut cam1_cost = HashMap::new();
@@ -134,7 +134,7 @@ pub fn pnp_refine(
         // for g in &good_id_errs {
         //     println!("{}", g.1);
         // }
-        good_id_errs.truncate(40);
+        good_id_errs.truncate(25);
 
         let mut refine_problem = tiny_solver::Problem::new();
 

@@ -10,7 +10,7 @@ use crate::types::{DVecVec3, ToRvecTvec};
 pub struct PnPFactor<T: na::RealField> {
     t_i_0: na::Isometry3<T>,
     p3d: na::Point3<T>,
-    p2d: na::Point2<T>,
+    p2d: na::Point3<T>,
 }
 
 impl<T: na::RealField> PnPFactor<T> {
@@ -19,17 +19,25 @@ impl<T: na::RealField> PnPFactor<T> {
         p3d: &(f64, f64, f64),
         undist_p2d: &(f64, f64),
     ) -> PnPFactor<T> {
+        let n = (undist_p2d.0 * undist_p2d.0 + undist_p2d.1 * undist_p2d.1 + 1.0).sqrt();
+        let p = na::Point3::new(undist_p2d.0 / n, undist_p2d.1 / n, 1.0 / n);
+
         PnPFactor {
             t_i_0: t_i_0.cast(),
             p3d: na::Point3::new(p3d.0, p3d.1, p3d.2).cast(),
-            p2d: na::Point2::new(undist_p2d.0, undist_p2d.1).cast(),
+            p2d: p.cast(),
         }
     }
-    pub fn reprojection_error(&self, t_cam0_world: &na::Isometry3<T>) -> na::DVector<T> {
+    pub fn distance_error(&self, t_cam0_world: &na::Isometry3<T>) -> na::DVector<T> {
         let p3d_t = self.t_i_0.clone() * t_cam0_world * self.p3d.clone();
+        let n = (p3d_t.x.clone() * p3d_t.x.clone()
+            + p3d_t.y.clone() * p3d_t.y.clone()
+            + p3d_t.z.clone() * p3d_t.z.clone())
+        .sqrt();
         na::dvector![
-            self.p2d.x.clone() - p3d_t.x.clone() / p3d_t.z.clone(),
-            self.p2d.y.clone() - p3d_t.y.clone() / p3d_t.z.clone()
+            self.p2d.x.clone() - p3d_t.x.clone() / n.clone(),
+            self.p2d.y.clone() - p3d_t.y.clone() / n.clone(),
+            self.p2d.z.clone() - p3d_t.z.clone() / n.clone(),
         ]
     }
 }
@@ -50,7 +58,7 @@ impl Factor for PnPFactor<DualDVec64> {
             params[1][2].clone(),
         );
         let t_cam0_world = na::Isometry3::new(tvec, rvec);
-        self.reprojection_error(&t_cam0_world)
+        self.distance_error(&t_cam0_world)
     }
 }
 
@@ -70,7 +78,7 @@ pub fn pnp_refine(
         let cost = PnPFactor::new(&na::Isometry3::identity(), p3d, p2d);
         cam0_cost.insert(*id, cost.clone());
         problem.add_residual_block(
-            2,
+            3,
             vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
             Box::new(cost),
             Some(Box::new(HuberLoss::new(HUBER_SCALE))),
@@ -80,7 +88,7 @@ pub fn pnp_refine(
         let cost = PnPFactor::new(t_1_0, p3d, p2d);
         cam1_cost.insert(*id, cost.clone());
         problem.add_residual_block(
-            2,
+            3,
             vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
             Box::new(cost),
             Some(Box::new(HuberLoss::new(HUBER_SCALE))),
@@ -91,7 +99,7 @@ pub fn pnp_refine(
         ("tvec".to_string(), rtvec.na_tvec()),
     ]);
     let optimizer = tiny_solver::GaussNewtonOptimizer {};
-    let threshold = 0.1;
+    let threshold = 0.01;
 
     if let Some(result) = optimizer.optimize(&problem, &initial_values, None) {
         let t_cam_world = na::Isometry3::new(
@@ -103,7 +111,7 @@ pub fn pnp_refine(
         let mut bad_ids = Vec::new();
         for (id0, p3d, p2d) in cam0_pts {
             let cost = PnPFactor::<f64>::new(&na::Isometry3::identity(), p3d, p2d);
-            let rep = cost.reprojection_error(&t_cam_world);
+            let rep = cost.distance_error(&t_cam_world);
             let rep_sq = rep.norm_squared();
             if rep_sq > threshold {
                 bad_ids.push(*id0);
@@ -113,7 +121,7 @@ pub fn pnp_refine(
         }
         for (id1, p3d, p2d) in cam1_pts {
             let cost = PnPFactor::<f64>::new(&na::Isometry3::identity(), p3d, p2d);
-            let rep = cost.reprojection_error(&t_cam_world);
+            let rep = cost.distance_error(&t_cam_world);
             let rep_sq = rep.norm_squared();
             if rep_sq > threshold {
                 bad_ids.push(*id1);
@@ -122,14 +130,18 @@ pub fn pnp_refine(
             }
         }
         good_id_errs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-        good_id_errs.truncate(30);
+        // println!("\n err");
+        // for g in &good_id_errs {
+        //     println!("{}", g.1);
+        // }
+        good_id_errs.truncate(40);
 
         let mut refine_problem = tiny_solver::Problem::new();
 
         for (id, _) in good_id_errs {
             if let Some(cost) = cam0_cost.remove(&id) {
                 refine_problem.add_residual_block(
-                    2,
+                    3,
                     vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
                     Box::new(cost),
                     Some(Box::new(HuberLoss::new(HUBER_SCALE))),
@@ -137,7 +149,7 @@ pub fn pnp_refine(
             }
             if let Some(cost) = cam1_cost.remove(&id) {
                 refine_problem.add_residual_block(
-                    2,
+                    3,
                     vec![("rvec".to_string(), 3), ("tvec".to_string(), 3)],
                     Box::new(cost),
                     Some(Box::new(HuberLoss::new(HUBER_SCALE))),

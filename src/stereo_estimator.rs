@@ -90,7 +90,7 @@ impl StereoEstimator {
                     let p3d = self.tracked_points_map.get(i).unwrap();
                     let p2d = self.current_frame_points.1.get(i).unwrap();
                     let p2dz = self
-                        .cam0
+                        .cam1
                         .unproject_one(&na::Vector2::new(p2d.0, p2d.1).cast());
                     (*i, (p3d[0], p3d[1], p3d[2]), (p2dz[0], p2dz[1]))
                 })
